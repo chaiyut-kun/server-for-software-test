@@ -1,38 +1,64 @@
-import express from 'express'
+import express from "express";
+import { sequelize } from "./config/database.js";
+import { Users } from "./model/user.js";
 
-const app = express()
-const PORT = 3000
+const app = express();
+const PORT = 3000;
 
 // Middleware to parse JSON and URL-encoded bodies
-app.use(express.json())
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/', (req, res) => {
-    res.send("Helloworld")
-})
+// sequelize ORM
+sequelize
+  .authenticate()
+  .then(() => console.log("Database Connected"))
+  .catch((err) => console.log("Error connecting to database", err));
 
-app.post('/login', (req, res) => {
-    const user = req.body
-    const username = user.email.slice(0, user.email.indexOf('@'))
-    // const test = 'test'.indexOf
+//  API endpoints
+app.get("/", (req, res) => {
+  res.send("Helloworld");
+});
+
+app.post("/login", async (req, res) => {
+  const user = req.body;
+  const email = user.email;
+
+  console.log(email)
+  
+  try {
+      const findUser = await Users.findOne({
+          where: { email: email },
+        });
+
     res.status(200).json({
-        message: `Login Successfully!, Welcome ${username}`,
-        data: user,
-    //     // token
-    })
-})
+      message: `Login Successfully!, Welcome ${'test'}`,
+      data: findUser,
+    });
+  } catch (err) {
+    console.log(err);
+    res.json(err);
+  }
+});
 
-app.post('/register', (req, res) => {
-    const token = 'token'
-    const user = req.body
+app.post("/register", async (req, res) => {
+  //   const token = "token";
+  const user = req.body;
+
+  try {
+    const createUser = await Users.create(user);
+
     res.status(201).json({
-        message : "Register Successfully!",
-        data: user,
-        token
-    }
-    )
-})
+      message: "Register Successfully!",
+      data: createUser,
+    });
+  } catch (err) {
+    console.log(err);
+    res.json(err);
+  }
+});
 
+//
 app.listen(PORT, () => {
-    console.log(`Server Is Running On Port ${PORT}`)
-})
+  console.log(`Server Is Running On Port ${PORT}`);
+});
