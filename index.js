@@ -1,12 +1,19 @@
 import express from "express";
 import { sequelize } from "./config/database.js";
 import { Users } from "./model/user.js";
+import cors from 'cors'
 
 const app = express();
 const PORT = 3000;
 
 // Middleware to parse JSON and URL-encoded bodies
 app.use(express.json());
+app.use(cors({
+  origin: "http://localhost:5173",
+  methods:  ["GET", "POST", "PUT", "DELETE"],
+  credentials: true // ถ้ามีการใช้ cookie หรือ auth header(เช่น bearer จาก jwt)
+
+}))
 app.use(express.urlencoded({ extended: true }));
 
 // sequelize ORM
@@ -31,8 +38,10 @@ app.post("/login", async (req, res) => {
           where: { email: email },
         });
 
+      const username = findUser.dataValues.name
+        
     res.status(200).json({
-      message: `Login Successfully!, Welcome ${'test'}`,
+      message: `Login Successfully!, Welcome ${username}`,
       data: findUser,
     });
   } catch (err) {
@@ -49,7 +58,7 @@ app.post("/register", async (req, res) => {
     const createUser = await Users.create(user);
 
     res.status(201).json({
-      message: "Register Successfully!",
+      message: `Register Successfully!, ${user.name}`,
       data: createUser,
     });
   } catch (err) {
