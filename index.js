@@ -2,11 +2,14 @@ import express from "express";
 import { sequelize } from "./config/database.js";
 import { Users } from "./model/user.js";
 import cors from "cors";
+import bcrypt from "bcrypt";
+import pkg from "jsonwebtoken"; 
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 
 const app = express();
 const PORT = 3000;
+const secret = process.env.SECRET_CODE
 
 // Middleware to parse JSON and URL-encoded bodies
 app.use(express.json());
@@ -30,43 +33,57 @@ app.get("/", (req, res) => {
   res.send("Helloworld");
 });
 
-app.post("api/login", async (req, res) => {
-  const user = req.body;
-  const email = user.email;
-
-  console.log(email);
+app.post("/api/login", async (req, res) => {
+  const {email, password} = req.body;
 
   try {
     const findUser = await Users.findOne({
       where: { email: email },
     });
 
-    const username = findUser.dataValues.name;
+    if (!findUser) {
+      return res.status(404).send("User not found");
+    }
 
-    res.status(200).json({
-      message: `Login Successfully!, Welcome ${username}`,
-      data: {id: findUser.id, name: findUser.name, email: findUser.email},
-    });
+    const matchPassword = await bcrypt.compare(password, findUser.dataValues.password)
+    
+    if (matchPassword) {
+      const username = findUser.dataValues.name;
+      const token = pkg.sign({email, username, id: findUser.id}, secret, {expiresIn: "1h"})
+
+      return res.status(200).json({
+        message: `Login Successfully!, Welcome ${username}`,
+        token
+      });
+    } else {
+      return res.status(400).json({message:"Invalide Email or Password"})
+    }
   } catch (err) {
     console.log(err);
-    res.json(err);
+    return res.json(err);
   }
 });
 
-app.post("api/register", async (req, res) => {
-  //   const token = "token";
-  const user = req.body;
-
+app.post("/api/register", async (req, res) => {
   try {
+    const { name, email, password } = req.body;
+
+    const hash = await  bcrypt.hash(password, 10);
+    const user = { name, email, password: hash };
     const createUser = await Users.create(user);
 
-    res.status(201).json({
+    console.log(createUser )
+
+    return res.status(201).json({
       message: `Register Successfully!, ${user.name}`,
       data: createUser,
     });
   } catch (err) {
+    if (err.name === "SequelizeUniqueConstraintError") {
+      return res.status(409).json({ message: "Email already exists" });
+    }
     console.log(err);
-    res.json(err);
+    return res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -106,7 +123,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *          email:
  *            type: string
  *            format: email
- *            description: User email 
+ *            description: User email
  *          password:
  *            type: string
  *            minLength: 4
@@ -114,7 +131,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *      LoginResponse:
  *        type: object
  *        properties:
- *          message: 
+ *          message:
  *            type: string
  *          user:
  *            type: object
@@ -188,7 +205,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *        application/json:
  *          schema:
  *            $ref: '#/components/schemas/LoginRequest'
- *    responses: 
+ *    responses:
  *      200:
  *        description: Sucessful Response
  *        content:
@@ -222,7 +239,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *        application/json:
  *          schema:
  *            $ref: '#/components/schemas/RegisterRequest'
- *    responses: 
+ *    responses:
  *      201:
  *        description: Sucessful Response
  *        content:
