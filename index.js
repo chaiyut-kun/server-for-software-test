@@ -30,7 +30,7 @@ app.get("/", (req, res) => {
   res.send("Helloworld");
 });
 
-app.post("/login", async (req, res) => {
+app.post("api/login", async (req, res) => {
   const user = req.body;
   const email = user.email;
 
@@ -53,7 +53,7 @@ app.post("/login", async (req, res) => {
   }
 });
 
-app.post("/register", async (req, res) => {
+app.post("api/register", async (req, res) => {
   //   const token = "token";
   const user = req.body;
 
@@ -179,7 +179,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /**
  * @swagger
- * /login:
+ * /api/login:
  *  post:
  *    summary: Login to system
  *    requestBody:
@@ -213,7 +213,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /**
  * @swagger
- * /register:
+ * /api/register:
  *  post:
  *    summary: Register to system
  *    requestBody:
