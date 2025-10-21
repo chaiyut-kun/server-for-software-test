@@ -3,16 +3,23 @@ import { sequelize } from "./config/database.js";
 import { Users } from "./model/user.js";
 import cors from "cors";
 import bcrypt from "bcrypt";
-import pkg from "jsonwebtoken"; 
+import jwt from "jsonwebtoken";
+import cookieParser from "cookie-parser";
 import swaggerJsdoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
+import dotenv from "dotenv";
+import { historyLogin, historyRegister } from "./webhook_fn.js";
 
 const app = express();
+dotenv.config();
 const PORT = 3000;
-const secret = process.env.SECRET_CODE
+const secret = process.env.SECRET_CODE;
+const webhook = process.env.N8N_WEBHOOK_URL;
+const webhookTest = process.env.N8N_WEBHOOK_URL_TEST;
 
 // Middleware to parse JSON and URL-encoded bodies
 app.use(express.json());
+app.use(cookieParser());
 app.use(
   cors({
     origin: "http://localhost:5173",
@@ -33,8 +40,39 @@ app.get("/", (req, res) => {
   res.send("Helloworld");
 });
 
+const authenticateToken = (req, res, next) => {
+  const token = req.cookies.token;
+
+  // console.log("token", token);
+
+  if (token === null) {
+    // unauthorized
+    return res.sendStatus(401);
+  }
+
+  try {
+    const user = jwt.verify(token, secret);
+    req.user = user;
+    console.log("user", user);
+    next();
+  } catch (error) {
+    return res.status(403).json({message: "You are not authorized to view this content."})
+  }
+};
+
+// @==== get users ======
+app.get("/api/users", authenticateToken, async (req, res) => {
+  const users = await Users.findAll();
+  res.status(200).json({
+    data: users,
+    message: "Get users SuccessFully"
+  });
+});
+
+// @==== Login ======
 app.post("/api/login", async (req, res) => {
-  const {email, password} = req.body;
+  const { email, password } = req.body;
+  let status;
 
   try {
     const findUser = await Users.findOne({
@@ -42,40 +80,68 @@ app.post("/api/login", async (req, res) => {
     });
 
     if (!findUser) {
-      return res.status(404).send("User not found");
+      status = "Fail";
+      return res.status(404).json({
+        message: "No account found for this user",
+      });
     }
 
-    const matchPassword = await bcrypt.compare(password, findUser.dataValues.password)
-    
+    const matchPassword = await bcrypt.compare(
+      password,
+      findUser.dataValues.password
+    );
+
     if (matchPassword) {
       const username = findUser.dataValues.name;
-      const token = pkg.sign({email, username, id: findUser.id}, secret, {expiresIn: "1h"})
+      const token = jwt.sign({ email, username, id: findUser.id }, secret, {
+        expiresIn: "1h",
+      });
+
+      const user = { email, name: username, id: findUser.id };
+
+      res.cookie("token", token, {
+        maxAge: 300000,
+        secure: true,
+        httpOnly: true,
+        sameSite: "none",
+      });
+
+      console.log("this is cookie",req.cookies)
+      console.log("this is token",token)
+
+      // use n8n webhook to save login
+      status = "Success";
 
       return res.status(200).json({
         message: `Login Successfully!, Welcome ${username}`,
-        token
+        user,
+        token,
       });
     } else {
-      return res.status(400).json({message:"Invalide Email or Password"})
+      return res.status(400).json({ message: "Invalide Email or Password" });
     }
   } catch (err) {
     console.log(err);
+    status = "Fail";
     return res.json(err);
+  } finally {
+    // await historyLogin(email, status);
   }
 });
 
+// @==== REGISTER ======
 app.post("/api/register", async (req, res) => {
+  const { name, email, password } = req.body;
+  let status;
   try {
-    const { name, email, password } = req.body;
-
-    const hash = await  bcrypt.hash(password, 10);
+    const hash = await bcrypt.hash(password, 10);
     const user = { name, email, password: hash };
     const createUser = await Users.create(user);
 
-    console.log(createUser )
-
+    console.log(createUser);
+    status = "Success";
     return res.status(201).json({
-      message: `Register Successfully!, ${user.name}`,
+      message: `Register Successfully!, Please Login`,
       data: createUser,
     });
   } catch (err) {
@@ -83,7 +149,11 @@ app.post("/api/register", async (req, res) => {
       return res.status(409).json({ message: "Email already exists" });
     }
     console.log(err);
+    status = "Fail";
+
     return res.status(500).json({ message: "Server error" });
+  } finally {
+    // historyRegister(name, email, status);
   }
 });
 
