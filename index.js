@@ -56,7 +56,9 @@ const authenticateToken = (req, res, next) => {
     console.log("user", user);
     next();
   } catch (error) {
-    return res.status(403).json({message: "You are not authorized to view this content."})
+    return res
+      .status(403)
+      .json({ message: "You are not authorized to view this content." });
   }
 };
 
@@ -65,7 +67,7 @@ app.get("/api/users", authenticateToken, async (req, res) => {
   const users = await Users.findAll();
   res.status(200).json({
     data: users,
-    message: "Get users SuccessFully"
+    message: "Get users SuccessFully",
   });
 });
 
@@ -106,8 +108,8 @@ app.post("/api/login", async (req, res) => {
         sameSite: "none",
       });
 
-      console.log("this is cookie",req.cookies)
-      console.log("this is token",token)
+      console.log("this is cookie", req.cookies);
+      console.log("this is token", token);
 
       // use n8n webhook to save login
       status = "Success";
@@ -250,6 +252,19 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
  *          name: messi
  *          email: leo.messi@mail.com
  *          password: bla_bla
+ *      GetUsersResponse:
+ *        type: object
+ *        properties:
+ *          name:
+ *            type: string
+ *            description: Username (letters, numbers, underscores only)
+ *          email:
+ *            type: string
+ *            description: User email address
+ *        example:
+ *          name: messi
+ *          email: leo.messi@mail.com
+ *          password: bla_bla
  *      ValidationError:
  *        type: object
  *        properties:
@@ -334,18 +349,30 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /**
  * @swagger
- * /:
+ * /api/users:
  *  get:
- *    summary: Say Hello to user
- *    response:
+ *    summary: Get all users
+ *    responses:
  *      200:
  *        description: Sucessful Response
  *        content:
- *          text/plain:
+ *          application/json:
  *            schema:
- *              type: string
- *              example:
- *                Helloworld
+ *              $ref: '#/components/schemas/GetUsersResponse'
+ *      400:
+ *        description: Validation error or user already exists
+ *        content:
+ *          application/json:
+ *            schema:
+ *              oneOf:
+ *                - $ref: '#/components/schemas/ValidationError'
+ *                - $ref: '#/components/schemas/Error'
+ *      500:
+ *        description: Server error
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/components/schemas/Error'
  */
 
 // RUN
