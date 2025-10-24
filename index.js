@@ -150,7 +150,7 @@ app.post("/api/register", async (req, res) => {
 
     if (err.name === "SequelizeUniqueConstraintError") {
       console.log("Email already exists") 
-      return res.status(409).json({ message: "Email already exists" });
+      return res.status(409).json({ message: "Email already exists!" });
     }
     console.log(err);
     status = "Fail";
