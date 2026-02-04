@@ -22,6 +22,9 @@
 	<code><img width="50" src="https://raw.githubusercontent.com/marwin1991/profile-technology-icons/refs/heads/main/icons/windows.png" alt="Windows" title="Windows"/></code>
 </div>
 
+#UI web repo
+https://github.com/chaiyut-kun/login-register-soft-test-final
+
 # API Endpoint
 API will run at http://localhost:3000/
 - `/api/login` (for login)
